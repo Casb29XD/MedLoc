@@ -1,0 +1,26 @@
+# Evitar que se copien archivos innecesarios o sensibles a la imagen Docker
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Variables de entorno (se pasan a través de docker-compose)
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs y bases de datos locales
+*.log
+*.sqlite
+*.db

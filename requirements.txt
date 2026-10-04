@@ -1,0 +1,13 @@
+# MedLoc - Dependencias Python
+# Instalar con: pip install -r requirements.txt
+
+# Framework Web
+Flask==3.1.0
+
+# ORM y conexión a PostgreSQL
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Gestión de variables de entorno
+python-dotenv==1.0.1

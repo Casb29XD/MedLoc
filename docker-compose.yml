@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # BACKEND (Flask + SQLAlchemy)
+  # ==========================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medloc_backend
+    ports:
+      - "5000:5000"
+    # Cargamos las credenciales desde el archivo .env local
+    env_file:
+      - .env
+    environment:
+      # Sobrescribimos o añadimos variables específicas para Docker
+      - FLASK_ENV=production
+      - PORT=5000
+    # Opcional para desarrollo: montar el volumen local
+    # volumes:
+    #   - .:/app
+    restart: unless-stopped
+
+  # ==========================================
+  # FRONTEND (Placeholder para Next.js / React / Vue)
+  # ==========================================
+  frontend:
+    # Por ahora usamos una imagen ligera de Node.js que solo espera
+    image: node:20-alpine
+    container_name: medloc_frontend
+    # working_dir: /app
+    # volumes:
+    #   - ./frontend:/app
+    ports:
+      - "3000:3000"
+    # Comando temporal para mantener vivo el contenedor hasta que creemos el frontend
+    command: sh -c "echo 'Frontend container listo y a la espera de código...' && sleep infinity"
+    restart: unless-stopped
+    depends_on:
+      - backend
