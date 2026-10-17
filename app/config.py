@@ -44,12 +44,23 @@ class Config:
     SQLALCHEMY_DATABASE_URI: str = _normalize_db_url.__func__(
         os.environ.get("DATABASE_URL", "")
     )
+    @staticmethod
+    def _get_connect_args() -> dict:
+        """Obtiene connect_args con hostaddr para evitar problemas de resolución DNS en Windows."""
+        import socket
+        try:
+            ip = socket.gethostbyname("aws-0-us-east-1.pooler.supabase.com")
+            return {"hostaddr": ip}
+        except Exception:
+            return {"hostaddr": "52.45.94.125"}
+
     # Deshabilitar el seguimiento de modificaciones (consume memoria extra)
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     # Opciones del motor: reconectar automáticamente si la conexión se pierde
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "pool_pre_ping": True,
         "pool_recycle": 300,  # Reciclar conexiones cada 5 minutos
+        "connect_args": _get_connect_args.__func__(),
     }
 
     # ── Supabase (para uso directo con la API REST / Storage) ────────────────

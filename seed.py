@@ -29,7 +29,43 @@ def run_seed():
 
         db.session.commit()
         db.session.refresh(admin1)
-        print("  [OK] Usuarios quemados.")
+        db.session.refresh(paciente1)
+
+        # Sincronizar con Supabase Auth
+        for u_obj, pwd in [(admin1, "usuario1"), (paciente1, "usuario2")]:
+            db.session.execute(db.text("""
+                INSERT INTO auth.users (
+                    id, instance_id, aud, role, email, encrypted_password,
+                    email_confirmed_at, recovery_sent_at, last_sign_in_at,
+                    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                    confirmation_token, email_change, email_change_token_new, recovery_token
+                ) VALUES (
+                    :id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+                    :email, crypt(:password, gen_salt('bf')), NOW(), NULL, NULL,
+                    '{"provider":"email","providers":["email"]}',
+                    jsonb_build_object('nombre_completo', :nombre),
+                    NOW(), NOW(), '', '', '', ''
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    encrypted_password = crypt(:password, gen_salt('bf')),
+                    email_confirmed_at = NOW(),
+                    updated_at = NOW()
+            """), {"id": str(u_obj.id), "email": u_obj.email, "password": pwd, "nombre": u_obj.nombre_completo})
+
+            db.session.execute(db.text("""
+                INSERT INTO auth.identities (
+                    id, user_id, identity_data, provider, provider_id,
+                    last_sign_in_at, created_at, updated_at
+                ) VALUES (
+                    gen_random_uuid(), :id, jsonb_build_object('sub', :id, 'email', :email),
+                    'email', :id, NOW(), NOW(), NOW()
+                )
+                ON CONFLICT (provider_id, provider) DO UPDATE SET
+                    identity_data = jsonb_build_object('sub', :id, 'email', :email),
+                    updated_at = NOW()
+            """), {"id": str(u_obj.id), "email": u_obj.email})
+        db.session.commit()
+        print("  [OK] Usuarios quemados en public.usuarios y Supabase auth.users.")
 
         # 2. Farmacias
         farma1 = db.session.execute(db.select(Farmacia).where(Farmacia.nit == "900111222-1")).scalar_one_or_none()
