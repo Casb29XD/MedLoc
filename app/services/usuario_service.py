@@ -89,7 +89,7 @@ class UsuarioService:
     @staticmethod
     def to_dict(usuario: Usuario) -> dict:
         """Serializa un Usuario a diccionario JSON-safe."""
-        return {
+        data = {
             "id": str(usuario.id),
             "nombre_completo": usuario.nombre_completo,
             "email": usuario.email,
@@ -97,4 +97,16 @@ class UsuarioService:
             "fecha_creacion": (
                 usuario.fecha_creacion.isoformat() if usuario.fecha_creacion else None
             ),
+            "farmacia_id": None,
+            "farmacia_nombre": None,
         }
+        # Si el usuario es administrador, incluir la primera farmacia que administra
+        try:
+            primera_farmacia = usuario.farmacias_administradas.first()
+            if primera_farmacia:
+                data["farmacia_id"] = str(primera_farmacia.id)
+                data["farmacia_nombre"] = primera_farmacia.nombre_sucursal
+        except Exception:
+            pass
+        return data
+
