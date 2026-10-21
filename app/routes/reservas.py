@@ -1,15 +1,73 @@
 """Rutas de la API para la gestión de Reservas."""
+import secrets
 from flask import Blueprint, request
-from ..models.reserva import EstadoReserva, Reserva
+from ..models.reserva import DetalleReserva, EstadoReserva, Reserva
+from ..models.inventario import Inventario
+from ..models.medicamento import Medicamento
 from ..extensions import db
 from ..utils.responses import (
     success_response,
+    created_response,
     not_found_response,
     validation_error_response,
     server_error_response,
 )
 
 reservas_bp = Blueprint("reservas", __name__)
+
+
+@reservas_bp.route("/", methods=["POST"])
+def crear_reserva():
+    """Crea una reserva para un medicamento disponible en una farmacia."""
+    datos = request.get_json(silent=True) or {}
+    usuario_id = datos.get("id_usuario")
+    farmacia_id = datos.get("id_farmacia")
+    medicamento_id = datos.get("id_medicamento")
+    cantidad = datos.get("cantidad", 1)
+
+    if not all((usuario_id, farmacia_id, medicamento_id)):
+        return validation_error_response({
+            "reserva": "Se requieren id_usuario, id_farmacia e id_medicamento."
+        })
+    try:
+        cantidad = int(cantidad)
+    except (TypeError, ValueError):
+        return validation_error_response({"cantidad": "La cantidad debe ser un entero positivo."})
+    if cantidad < 1:
+        return validation_error_response({"cantidad": "La cantidad debe ser un entero positivo."})
+
+    try:
+        inventario = db.session.execute(
+            db.select(Inventario).where(
+                Inventario.id_farmacia == farmacia_id,
+                Inventario.id_medicamento == medicamento_id,
+            )
+        ).scalar_one_or_none()
+        medicamento = db.session.get(Medicamento, medicamento_id)
+        if not inventario or not medicamento:
+            return not_found_response("Medicamento en el inventario")
+        if inventario.stock_actual < cantidad:
+            return validation_error_response({"cantidad": "No hay unidades suficientes disponibles."})
+
+        reserva = Reserva(
+            id_usuario=usuario_id,
+            id_farmacia=farmacia_id,
+            estado=EstadoReserva.PENDIENTE,
+            codigo_retiro=str(secrets.randbelow(900000) + 100000),
+        )
+        inventario.stock_actual -= cantidad
+        reserva.detalles.append(DetalleReserva(
+            id_medicamento=medicamento_id,
+            cantidad=cantidad,
+            precio_congelado=inventario.precio_unitario,
+        ))
+        db.session.add(reserva)
+        db.session.commit()
+        db.session.refresh(reserva)
+        return created_response(data=_to_dict(reserva), message="Reserva creada exitosamente.")
+    except Exception as exc:
+        db.session.rollback()
+        return server_error_response(str(exc))
 
 
 def _to_dict(reserva: Reserva) -> dict:
@@ -60,7 +118,7 @@ def listar_reservas():
 
 @reservas_bp.route("/<uuid:reserva_id>/estado", methods=["PATCH"])
 def actualizar_estado(reserva_id):
-    """Actualiza el estado de una reserva."""
+    """Actualiza el estado y repone stock cuando se cancela una reserva."""
     reserva = db.session.get(Reserva, reserva_id)
     if not reserva:
         return not_found_response("Reserva")
@@ -68,7 +126,23 @@ def actualizar_estado(reserva_id):
     datos = request.get_json(silent=True) or {}
     estado = datos.get("estado", "")
     try:
-        reserva.estado = EstadoReserva(estado)
+        nuevo_estado = EstadoReserva(estado)
+        estado_anterior = reserva.estado
+
+        if nuevo_estado == EstadoReserva.CANCELADA and estado_anterior != EstadoReserva.CANCELADA:
+            for detalle in reserva.detalles:
+                inventario = db.session.execute(
+                    db.select(Inventario)
+                    .where(
+                        Inventario.id_farmacia == reserva.id_farmacia,
+                        Inventario.id_medicamento == detalle.id_medicamento,
+                    )
+                    .with_for_update()
+                ).scalar_one_or_none()
+                if inventario:
+                    inventario.stock_actual += detalle.cantidad
+
+        reserva.estado = nuevo_estado
         db.session.commit()
         db.session.refresh(reserva)
         return success_response(data=_to_dict(reserva), message="Estado de reserva actualizado.")
