@@ -17,6 +17,7 @@ class RolUsuario(str, enum.Enum):
 
     PACIENTE = "paciente"
     ADMINISTRADOR = "administrador"
+    ADMIN_FARMACIA = "admin_farmacia"
     FARMACEUTICO = "farmaceutico"
 
 

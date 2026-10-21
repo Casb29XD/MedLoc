@@ -46,15 +46,19 @@ class UsuarioService:
         Retorna (usuario, None) en éxito o (None, mensaje_error) en fallo.
         """
         try:
+            rol = RolUsuario(datos.get("rol", RolUsuario.PACIENTE.value))
             nuevo = Usuario(
                 nombre_completo=datos["nombre_completo"],
                 email=datos["email"],
-                rol=RolUsuario(datos.get("rol", RolUsuario.PACIENTE.value)),
+                rol=rol,
             )
             db.session.add(nuevo)
             db.session.commit()
             db.session.refresh(nuevo)  # Obtener UUID y timestamp de Supabase
             return nuevo, None
+        except ValueError:
+            roles_validos = [r.value for r in RolUsuario]
+            return None, f"Rol inválido. Valores permitidos: {roles_validos}"
         except IntegrityError:
             db.session.rollback()
             return None, f"El email '{datos['email']}' ya está registrado."
@@ -89,11 +93,14 @@ class UsuarioService:
     @staticmethod
     def to_dict(usuario: Usuario) -> dict:
         """Serializa un Usuario a diccionario JSON-safe."""
+        rol = usuario.rol.value if usuario.rol else None
+        if rol == RolUsuario.ADMIN_FARMACIA.value:
+            rol = RolUsuario.ADMINISTRADOR.value
         data = {
             "id": str(usuario.id),
             "nombre_completo": usuario.nombre_completo,
             "email": usuario.email,
-            "rol": usuario.rol.value if usuario.rol else None,
+            "rol": rol,
             "fecha_creacion": (
                 usuario.fecha_creacion.isoformat() if usuario.fecha_creacion else None
             ),
@@ -109,4 +116,3 @@ class UsuarioService:
         except Exception:
             pass
         return data
-

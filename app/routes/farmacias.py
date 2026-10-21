@@ -60,6 +60,8 @@ def crear_farmacia():
 
     Body JSON opcional:
       - id_administrador  (uuid)
+      - hora_apertura     (str, formato HH:MM)
+      - hora_cierre       (str, formato HH:MM)
       - latitud           (float)
       - longitud          (float)
       - activa            (bool, default: true)
@@ -107,6 +109,8 @@ def actualizar_farmacia(farmacia_id):
       - nombre_sucursal
       - nit
       - direccion
+      - hora_apertura     (str, formato HH:MM)
+      - hora_cierre       (str, formato HH:MM)
       - latitud
       - longitud
       - activa            (bool: true/false para activar/desactivar)

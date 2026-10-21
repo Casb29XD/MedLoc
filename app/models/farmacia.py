@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 """
 MedLoc - Modelo de Farmacia
 """
-from sqlalchemy import Column, String, Boolean, Numeric, ForeignKey, text
+from sqlalchemy import Column, String, Boolean, Numeric, ForeignKey, Time, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from ..extensions import db
@@ -47,6 +47,16 @@ class Farmacia(db.Model):
         String(300),
         nullable=False,
         comment="Dirección física de la farmacia",
+    )
+    hora_apertura = Column(
+        Time,
+        nullable=True,
+        comment="Hora de apertura de la farmacia",
+    )
+    hora_cierre = Column(
+        Time,
+        nullable=True,
+        comment="Hora de cierre de la farmacia",
     )
 
     # Coordenadas geográficas con precisión de hasta 8 decimales
