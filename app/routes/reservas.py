@@ -80,6 +80,8 @@ def _to_dict(reserva: Reserva) -> dict:
         "codigo_retiro": reserva.codigo_retiro,
         "cliente": reserva.usuario.nombre_completo if reserva.usuario else "Cliente",
         "email_cliente": reserva.usuario.email if reserva.usuario else None,
+        "farmacia": reserva.farmacia.nombre_sucursal if reserva.farmacia else "Farmacia",
+        "direccion_farmacia": reserva.farmacia.direccion if reserva.farmacia else "",
         "detalles": [
             {
                 "id_medicamento": str(detalle.id_medicamento),
@@ -97,15 +99,23 @@ def _to_dict(reserva: Reserva) -> dict:
 
 @reservas_bp.route("/", methods=["GET"])
 def listar_reservas():
-    """Lista reservas de una farmacia mediante ?farmacia_id=<uuid>."""
+    """Lista reservas por farmacia o usuario."""
     farmacia_id = request.args.get("farmacia_id", "").strip()
-    if not farmacia_id:
-        return validation_error_response({"farmacia_id": "El parámetro 'farmacia_id' es requerido."})
+    usuario_id = request.args.get("usuario_id", "").strip()
+    if not farmacia_id and not usuario_id:
+        return validation_error_response({
+            "filtro": "Se requiere 'farmacia_id' o 'usuario_id'."
+        })
 
     try:
+        filtros = []
+        if farmacia_id:
+            filtros.append(Reserva.id_farmacia == farmacia_id)
+        if usuario_id:
+            filtros.append(Reserva.id_usuario == usuario_id)
         reservas = db.session.execute(
             db.select(Reserva)
-            .where(Reserva.id_farmacia == farmacia_id)
+            .where(*filtros)
             .order_by(Reserva.fecha_reserva.desc())
         ).scalars().unique().all()
         return success_response(
